@@ -1,0 +1,49 @@
+[
+  {
+    "record_id": "PACK-REC-0003",
+    "tenant_id": "org_demo_alpha",
+    "unit_id": "UNIT-0003",
+    "shipment_id": "SHIP-9002",
+    "order_id": "ORD-9003",
+    "sku": "SKU-PRO-03",
+    "asin": "B089XX1003",
+    "timestamp": "2026-09-16T11:15:00Z",
+    "operator_id": "OP-PACK-05",
+    "weight_sensor_lbs": 2.12,
+    "length_in": 8.0,
+    "width_in": 5.0,
+    "height_in": 3.0,
+    "scale_id": "SCALE-03",
+    "photo_ref": "/photos/pack_0003.jpg",
+    "notes": "Verified weight 2.12 lbs on calibrated scale SCALE-03."
+  },
+  {
+    "record_id": "PACK-REC-0010",
+    "tenant_id": "org_demo_alpha",
+    "unit_id": "UNIT-0010",
+    "shipment_id": "SHIP-9007",
+    "order_id": "ORD-9010",
+    "sku": "SKU-PRO-10",
+    "asin": "B089XX1010",
+    "timestamp": "2026-09-16T14:20:00Z",
+    "operator_id": "OP-PACK-06",
+    "box_tear_detected": true,
+    "weight_sensor_lbs": 3.10,
+    "photo_ref": "/photos/pack_0010.jpg",
+    "notes": "Minor corner tear noted during automated packing line scan."
+  },
+  {
+    "record_id": "PACK-REC-0011",
+    "tenant_id": "org_demo_alpha",
+    "unit_id": "UNIT-0011",
+    "shipment_id": "SHIP-9007",
+    "order_id": "ORD-9011",
+    "sku": "SKU-PRO-11",
+    "asin": "B089XX1011",
+    "timestamp": "2026-09-16T15:00:00Z",
+    "operator_id": "OP-PACK-06",
+    "weight_sensor_lbs": 1.20,
+    "photo_ref": "/photos/pack_0011.jpg",
+    "notes": "Pack scale recorded 1.2 lbs."
+  }
+]

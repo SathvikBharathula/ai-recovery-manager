@@ -1,0 +1,17 @@
+[
+  {
+    "record_id": "RET-REC-0005",
+    "tenant_id": "org_demo_alpha",
+    "unit_id": "UNIT-0005",
+    "shipment_id": "SHIP-9003",
+    "order_id": "ORD-7705",
+    "sku": "SKU-PRO-05",
+    "asin": "B089XX1005",
+    "timestamp": "2026-09-18T16:20:00Z",
+    "operator_id": "OP-RET-01",
+    "return_disposition": "CARRIER_DAMAGE",
+    "customer_reason": "Box crushed by carrier delivery truck",
+    "inspection_notes": "Outer brown box crushed flat in transit by logistics carrier. Internal seller prep intact.",
+    "photo_ref": "/photos/ret_0005.jpg"
+  }
+]

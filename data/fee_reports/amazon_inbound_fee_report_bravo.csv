@@ -1,0 +1,4 @@
+charge_id,tenant_id,shipment_id,order_id,unit_id,sku,asin,reason,amount,currency,timestamp
+CHG-2001,org_demo_bravo,SHIP-8001,ORD-8020,UNIT-0020,SKU-BRAVO-01,B099YY2020,packaging defect,30.00,USD,2026-09-21T11:00:00Z
+CHG-2002,org_demo_bravo,SHIP-8002,ORD-8021,UNIT-0021,SKU-BRAVO-02,B099YY2021,expired inventory fee,50.00,USD,2026-09-21T11:05:00Z
+CHG-2003,org_demo_bravo,SHIP-8003,ORD-8022,UNIT-0022,SKU-BRAVO-03,B099YY2022,labeling error,12.00,USD,2026-09-21T11:10:00Z

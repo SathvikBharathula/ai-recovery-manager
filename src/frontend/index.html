@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Recovery Manager · Turn Data into Defensible Claims</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0f9ff',
+              500: '#06b6d4',
+              600: '#0284c7',
+              900: '#0c4a6e',
+              dark: '#0b0f19',
+              card: 'rgba(17, 24, 39, 0.75)'
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- React 18 & Babel CDN -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
+  <!-- Three.js CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+    body {
+      background-color: #0b0f19;
+      color: #f3f4f6;
+      font-family: 'Inter', sans-serif;
+      overflow-x: hidden;
+    }
+
+    /* Glassmorphism Styling */
+    .glass-panel {
+      background: rgba(17, 24, 39, 0.7);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    }
+
+    .glass-card {
+      background: rgba(30, 41, 59, 0.5);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .glass-card:hover {
+      border-color: rgba(6, 182, 212, 0.4);
+      transform: translateY(-2px);
+      box-shadow: 0 12px 24px -10px rgba(6, 182, 212, 0.15);
+    }
+
+    #three-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .status-badge-contradicted {
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.4);
+    }
+
+    .status-badge-supported {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.4);
+    }
+
+    .status-badge-silent {
+      background: rgba(107, 114, 128, 0.15);
+      color: #9ca3af;
+      border: 1px solid rgba(107, 114, 128, 0.4);
+    }
+
+    .status-badge-uncertain {
+      background: rgba(245, 158, 11, 0.15);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.4);
+    }
+
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0b0f19;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e293b;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #334155;
+    }
+  </style>
+</head>
+<body class="relative min-h-screen selection:bg-cyan-500 selection:text-black">
+  <!-- 3D Canvas Background -->
+  <canvas id="three-canvas"></canvas>
+
+  <div id="root" class="relative z-10 min-h-screen flex flex-col"></div>
+
+  <!-- Three.js Particle System Script -->
+  <script>
+    window.addEventListener('DOMContentLoaded', () => {
+      const canvas = document.getElementById('three-canvas');
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+      const renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true });
+      
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+      // Particle Grid / Logistics Flow Visualization
+      const particleCount = 200;
+      const geometry = new THREE.BufferGeometry();
+      const positions = new Float32Array(particleCount * 3);
+      const colors = new Float32Array(particleCount * 3);
+
+      for (let i = 0; i < particleCount * 3; i += 3) {
+        positions[i] = (Math.random() - 0.5) * 30;
+        positions[i + 1] = (Math.random() - 0.5) * 30;
+        positions[i + 2] = (Math.random() - 0.5) * 30;
+
+        // Gradient between Cyan & Blue
+        colors[i] = 0.02 + Math.random() * 0.1;
+        colors[i + 1] = 0.7 + Math.random() * 0.3;
+        colors[i + 2] = 0.9 + Math.random() * 0.1;
+      }
+
+      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+      const material = new THREE.PointsMaterial({
+        size: 0.15,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.6
+      });
+
+      const particleSystem = new THREE.Points(geometry, material);
+      scene.add(particleSystem);
+
+      // Connecting lines
+      const lineMaterial = new THREE.LineBasicMaterial({ color: 0x0284c7, transparent: true, opacity: 0.15 });
+      const lineGeometry = new THREE.BufferGeometry();
+      const linePositions = [];
+
+      const pos = geometry.attributes.position.array;
+      for (let i = 0; i < particleCount; i++) {
+        for (let j = i + 1; j < particleCount; j++) {
+          const dx = pos[i*3] - pos[j*3];
+          const dy = pos[i*3+1] - pos[j*3+1];
+          const dz = pos[i*3+2] - pos[j*3+2];
+          const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+          if (dist < 4.5) {
+            linePositions.push(pos[i*3], pos[i*3+1], pos[i*3+2]);
+            linePositions.push(pos[j*3], pos[j*3+1], pos[j*3+2]);
+          }
+        }
+      }
+      lineGeometry.setAttribute('position', new THREE.Float32BufferAttribute(linePositions, 3));
+      const lines = new THREE.LineSegments(lineGeometry, lineMaterial);
+      scene.add(lines);
+
+      camera.position.z = 15;
+
+      let mouseX = 0, mouseY = 0;
+      window.addEventListener('mousemove', (e) => {
+        mouseX = (e.clientX - window.innerWidth / 2) * 0.0005;
+        mouseY = (e.clientY - window.innerHeight / 2) * 0.0005;
+      });
+
+      function animate() {
+        requestAnimationFrame(animate);
+        particleSystem.rotation.y += 0.001;
+        particleSystem.rotation.x += 0.0005;
+        lines.rotation.y += 0.001;
+        lines.rotation.x += 0.0005;
+
+        camera.position.x += (mouseX * 10 - camera.position.x) * 0.05;
+        camera.position.y += (-mouseY * 10 - camera.position.y) * 0.05;
+        camera.lookAt(scene.position);
+
+        renderer.render(scene, camera);
+      }
+      animate();
+
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+    });
+  </script>
+
+  <!-- React Application Logic -->
+  <script type="text/babel">
+    const { useState, useEffect, useMemo } = React;
+
+    const API_BASE = "http://localhost:8000";
+
+    function App() {
+      const [activeTenant, setActiveTenant] = useState("org_demo_alpha");
+      const [tenants, setTenants] = useState([]);
+      const [results, setResults] = useState([]);
+      const [summary, setSummary] = useState(null);
+      const [loading, setLoading] = useState(false);
+      const [filter, setFilter] = useState("ALL");
+      const [searchQuery, setSearchQuery] = useState("");
+      
+      const [selectedDispute, setSelectedDispute] = useState(null);
+      const [overrideModalCharge, setOverrideModalCharge] = useState(null);
+      const [showEvalModal, setShowEvalModal] = useState(false);
+      const [showUploadModal, setShowUploadModal] = useState(false);
+      const [evalMetrics, setEvalMetrics] = useState(null);
+
+      // Fetch tenants and run analysis on load
+      useEffect(() => {
+        fetch(`${API_BASE}/tenants`)
+          .then(res => res.json())
+          .then(data => setTenants(data.tenants || []))
+          .catch(err => console.log("API load fallback", err));
+
+        runAnalysis(activeTenant);
+      }, [activeTenant]);
+
+      const runAnalysis = async (tenantId) => {
+        setLoading(true);
+        try {
+          const res = await fetch(`${API_BASE}/analyze?tenant_id_query=${tenantId}`, {
+            method: "POST",
+            headers: { "X-Tenant-ID": tenantId }
+          });
+          const data = await res.json();
+          setSummary(data);
+          setResults(data.results || []);
+        } catch (err) {
+          console.error("Analysis error:", err);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      const handleTenantChange = (tenantId) => {
+        setActiveTenant(tenantId);
+      };
+
+      const runEvalSuite = async () => {
+        try {
+          const res = await fetch(`${API_BASE}/eval?tenant_id_query=${activeTenant}`, {
+            headers: { "X-Tenant-ID": activeTenant }
+          });
+          const data = await res.json();
+          setEvalMetrics(data);
+          setShowEvalModal(true);
+        } catch (err) {
+          alert("Error running evaluation suite: " + err.message);
+        }
+      };
+
+      const exportClaims = async (format) => {
+        window.open(`${API_BASE}/export?format=${format}&tenant_id_query=${activeTenant}`, '_blank');
+      };
+
+      const handleOverrideSubmit = async (chargeId, newVerdict, operatorId, reason) => {
+        try {
+          const res = await fetch(`${API_BASE}/overrides`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Tenant-ID": activeTenant
+            },
+            body: JSON.stringify({
+              charge_id: chargeId,
+              tenant_id: activeTenant,
+              new_verdict: newVerdict,
+              operator_id: operatorId,
+              reason: reason
+            })
+          });
+          const data = await res.json();
+          if (res.ok) {
+            alert(`Override saved! ${data.message}`);
+            setOverrideModalCharge(null);
+            runAnalysis(activeTenant);
+          } else {
+            alert("Override failed: " + data.detail);
+          }
+        } catch (err) {
+          alert("Error saving override: " + err.message);
+        }
+      };
+
+      const filteredResults = useMemo(() => {
+        return results.filter(item => {
+          const matchFilter = filter === "ALL" || item.assessment === filter;
+          const matchSearch = !searchQuery || 
+            `${item.charge_id} ${item.shipment_id} ${item.reason} ${item.explanation}`
+              .toLowerCase()
+              .includes(searchQuery.toLowerCase());
+          return matchFilter && matchSearch;
+        });
+      }, [results, filter, searchQuery]);
+
+      return (
+        <div className="min-h-screen flex flex-col">
+          {/* Header Bar */}
+          <header className="glass-panel sticky top-0 z-40 px-6 py-4 flex items-center justify-between border-b border-gray-800">
+            <div className="flex items-center space-x-3">
+              <div className="h-10 w-10 rounded-xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400 font-bold text-xl shadow-lg shadow-cyan-500/10">
+                ⚡
+              </div>
+              <div>
+                <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+                  AI RECOVERY MANAGER
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 font-mono">v2.0 PROD</span>
+                </h1>
+                <p className="text-xs text-gray-400">Commerce Context · Upstream Evidence Reasoning Engine</p>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-4">
+              {/* Tenant Switcher */}
+              <div className="flex items-center space-x-2 bg-gray-900/80 p-1.5 rounded-xl border border-gray-800">
+                <span className="text-xs text-gray-400 font-medium px-2">Tenant:</span>
+                <select 
+                  value={activeTenant} 
+                  onChange={(e) => handleTenantChange(e.target.value)}
+                  className="bg-gray-800 text-cyan-400 text-xs font-semibold px-3 py-1.5 rounded-lg border border-cyan-500/30 focus:outline-none focus:ring-1 focus:ring-cyan-500 cursor-pointer"
+                >
+                  <option value="org_demo_alpha">Alpha Commerce Corp (org_demo_alpha)</option>
+                  <option value="org_demo_bravo">Bravo Logistics LLC (org_demo_bravo)</option>
+                </select>
+              </div>
+
+              {/* Evaluation Modal Trigger */}
+              <button 
+                onClick={runEvalSuite}
+                className="px-3.5 py-1.5 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/30 text-xs font-semibold hover:bg-purple-500/20 transition flex items-center space-x-1.5"
+              >
+                <span>📊 Evaluation Suite</span>
+              </button>
+
+              {/* Re-analyze Trigger */}
+              <button 
+                onClick={() => runAnalysis(activeTenant)} 
+                disabled={loading}
+                className="px-4 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs transition shadow-lg shadow-cyan-500/20 flex items-center space-x-1"
+              >
+                <span>{loading ? "Analyzing..." : "🔄 Run Analysis"}</span>
+              </button>
+            </div>
+          </header>
+
+          {/* Hero & Stat Summary Banner */}
+          <section className="px-6 pt-8 pb-4 max-w-7xl mx-auto w-full">
+            <div className="glass-panel rounded-2xl p-6 mb-8 border border-cyan-500/20 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none"></div>
+              
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div>
+                  <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs font-medium mb-3">
+                    <span>🛡️ Conservative & Defensible Claims Only</span>
+                  </div>
+                  <h2 className="text-3xl font-extrabold text-white tracking-tight">
+                    Turn Data into Defensible Claims
+                  </h2>
+                  <p className="text-gray-400 text-sm mt-1 max-w-xl">
+                    Automated multi-stage operational evidence lookup linking Receiving, Prep, Pack, and Returns logs to channel fee reports.
+                  </p>
+                </div>
+
+                {/* Upload Button */}
+                <button 
+                  onClick={() => setShowUploadModal(true)}
+                  className="px-5 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-extrabold text-sm hover:opacity-90 transition shadow-xl shadow-cyan-500/20 flex items-center space-x-2 self-start md:self-center"
+                >
+                  <span>📥 Ingest Fee Report (CSV/JSON)</span>
+                </button>
+              </div>
+
+              {/* Stat Counters */}
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-6 pt-6 border-t border-gray-800">
+                <div className="glass-card rounded-xl p-4">
+                  <span className="text-xs text-gray-400 font-medium">Total Charges</span>
+                  <p className="text-2xl font-extrabold text-white mt-1">{summary?.total_charges || 0}</p>
+                </div>
+                <div className="glass-card rounded-xl p-4 border-l-2 border-l-red-500">
+                  <span className="text-xs text-red-400 font-medium">Contradicted (Claims)</span>
+                  <p className="text-2xl font-extrabold text-red-400 mt-1">{summary?.contradicted_count || 0}</p>
+                </div>
+                <div className="glass-card rounded-xl p-4 border-l-2 border-l-emerald-500">
+                  <span className="text-xs text-emerald-400 font-medium">Supported (Valid)</span>
+                  <p className="text-2xl font-extrabold text-emerald-400 mt-1">{summary?.supported_count || 0}</p>
+                </div>
+                <div className="glass-card rounded-xl p-4 border-l-2 border-l-gray-500">
+                  <span className="text-xs text-gray-400 font-medium">Silent (Missing)</span>
+                  <p className="text-2xl font-extrabold text-gray-400 mt-1">{summary?.silent_count || 0}</p>
+                </div>
+                <div className="glass-card rounded-xl p-4 border-l-2 border-l-amber-500">
+                  <span className="text-xs text-amber-400 font-medium">Uncertain (Review)</span>
+                  <p className="text-2xl font-extrabold text-amber-400 mt-1">{summary?.uncertain_count || 0}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Filter & Controls Bar */}
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-6">
+              {/* Status Filter Tabs */}
+              <div className="flex items-center space-x-2 bg-gray-900/90 p-1 rounded-xl border border-gray-800 w-full md:w-auto overflow-x-auto">
+                {["ALL", "CONTRADICTED", "SUPPORTED", "SILENT", "UNCERTAIN"].map(st => (
+                  <button
+                    key={st}
+                    onClick={() => setFilter(st)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                      filter === st 
+                        ? "bg-cyan-500 text-slate-950 font-bold shadow-md shadow-cyan-500/20" 
+                        : "text-gray-400 hover:text-white hover:bg-gray-800"
+                    }`}
+                  >
+                    {st === "CONTRADICTED" ? "🔴 CONTRADICTED" :
+                     st === "SUPPORTED" ? "🟢 SUPPORTED" :
+                     st === "SILENT" ? "⚪ SILENT" :
+                     st === "UNCERTAIN" ? "🟡 UNCERTAIN" : "ALL"}
+                  </button>
+                ))}
+              </div>
+
+              {/* Search Bar & Export Buttons */}
+              <div className="flex items-center space-x-3 w-full md:w-auto">
+                <input 
+                  type="text" 
+                  placeholder="Search SKU, Charge ID, Reason..." 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="bg-gray-900 text-white text-xs px-4 py-2 rounded-xl border border-gray-800 focus:outline-none focus:ring-1 focus:ring-cyan-500 w-full md:w-64"
+                />
+                <button 
+                  onClick={() => exportClaims('json')}
+                  className="px-3 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-semibold border border-gray-700 transition"
+                >
+                  Export JSON
+                </button>
+                <button 
+                  onClick={() => exportClaims('csv')}
+                  className="px-3 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-semibold border border-gray-700 transition"
+                >
+                  Export CSV
+                </button>
+              </div>
+            </div>
+
+            {/* Total Recoverable Highlight Banner */}
+            <div className="glass-panel p-4 rounded-xl mb-6 flex items-center justify-between border-l-4 border-l-cyan-500">
+              <div className="flex items-center space-x-3">
+                <span className="text-2xl">💰</span>
+                <div>
+                  <h4 className="text-sm font-bold text-white">Total Recoverable Claim Pool</h4>
+                  <p className="text-xs text-gray-400">Sum of all CONTRADICTED charge amounts supported by operational proof.</p>
+                </div>
+              </div>
+              <span className="text-2xl font-black text-cyan-400 tracking-tight font-mono">
+                ${(summary?.total_recoverable_amount || 0).toFixed(2)} USD
+              </span>
+            </div>
+
+            {/* Charge Cards Grid */}
+            {loading ? (
+              <div className="glass-panel p-12 text-center rounded-2xl">
+                <div className="animate-spin text-4xl mb-4">🔄</div>
+                <p className="text-gray-400 text-sm">Ingesting and parsing operational evidence streams...</p>
+              </div>
+            ) : filteredResults.length === 0 ? (
+              <div className="glass-panel p-12 text-center rounded-2xl border border-gray-800">
+                <p className="text-gray-400 text-sm">No charges match the selected filter criteria.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+                {filteredResults.map(charge => (
+                  <ChargeCard 
+                    key={charge.charge_id} 
+                    charge={charge} 
+                    onGenerateDispute={(chg) => setSelectedDispute(chg)}
+                    onOpenOverride={(chg) => setOverrideModalCharge(chg)}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* Footer */}
+          <footer className="mt-auto border-t border-gray-900 py-6 px-6 text-center text-xs text-gray-500">
+            AI Recovery Manager · Cube Buildathon Commerce Context · Tenancy Scoped to <span className="font-mono text-cyan-400">{activeTenant}</span>
+          </footer>
+
+          {/* Modals */}
+          {selectedDispute && (
+            <FormalDisputeModal 
+              charge={selectedDispute} 
+              onClose={() => setSelectedDispute(null)} 
+            />
+          )}
+
+          {overrideModalCharge && (
+            <OverrideModal 
+              charge={overrideModalCharge} 
+              onClose={() => setOverrideModalCharge(null)} 
+              onSubmit={handleOverrideSubmit}
+            />
+          )}
+
+          {showEvalModal && evalMetrics && (
+            <EvaluationModal 
+              metrics={evalMetrics} 
+              onClose={() => setShowEvalModal(false)} 
+            />
+          )}
+
+          {showUploadModal && (
+            <FileUploadModal 
+              tenantId={activeTenant}
+              onClose={() => setShowUploadModal(false)}
+              onSuccess={() => runAnalysis(activeTenant)}
+            />
+          )}
+        </div>
+      );
+    }
+
+    /* Charge Card Component */
+    function ChargeCard({ charge, onGenerateDispute, onOpenOverride }) {
+      const [expanded, setExpanded] = useState(false);
+
+      const statusBadgeClass = 
+        charge.assessment === "CONTRADICTED" ? "status-badge-contradicted" :
+        charge.assessment === "SUPPORTED" ? "status-badge-supported" :
+        charge.assessment === "SILENT" ? "status-badge-silent" : "status-badge-uncertain";
+
+      return (
+        <div className="glass-card rounded-2xl p-5 border flex flex-col justify-between relative overflow-hidden">
+          {charge.is_overridden && (
+            <div className="absolute top-0 right-0 bg-purple-500 text-slate-950 font-extrabold text-[10px] px-3 py-0.5 rounded-bl-lg uppercase tracking-wider">
+              Operator Overridden
+            </div>
+          )}
+
+          <div>
+            {/* Top Bar */}
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center space-x-2">
+                <span className="font-mono text-xs font-bold text-gray-300">{charge.charge_id}</span>
+                <span className="text-gray-600">·</span>
+                <span className="font-mono text-xs text-cyan-400">{charge.shipment_id || "N/A"}</span>
+              </div>
+              <span className={`px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${statusBadgeClass}`}>
+                {charge.assessment}
+              </span>
+            </div>
+
+            {/* Reason & Amounts */}
+            <div className="mb-4">
+              <h3 className="text-base font-bold text-white capitalize">{charge.reason}</h3>
+              <div className="flex items-center space-x-4 mt-2">
+                <div>
+                  <span className="text-[10px] uppercase text-gray-500 block font-semibold">Billed Fee</span>
+                  <span className="text-sm font-bold text-gray-300 font-mono">${charge.amount.toFixed(2)}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase text-gray-500 block font-semibold">Claim Amount</span>
+                  <span className={`text-sm font-bold font-mono ${charge.claim_amount > 0 ? "text-cyan-400" : "text-gray-500"}`}>
+                    ${charge.claim_amount.toFixed(2)}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase text-gray-500 block font-semibold">Confidence</span>
+                  <span className="text-xs font-mono text-gray-400">{Math.round(charge.confidence_score * 100)}%</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Primary Explanation Box */}
+            <div className="bg-gray-950/60 p-3 rounded-xl border border-gray-800/80 text-xs text-gray-300 mb-4 leading-relaxed">
+              {charge.explanation}
+            </div>
+
+            {/* Expandable Reasoning & Timeline Section */}
+            {expanded && (
+              <div className="mt-4 pt-4 border-t border-gray-800 space-y-4">
+                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Upstream Evidence Timeline Trace</h4>
+                
+                {/* Timeline Visualization */}
+                <div className="grid grid-cols-5 gap-2 text-center text-[10px]">
+                  <div className="bg-gray-900/80 p-2 rounded-lg border border-gray-800">
+                    <span className="block text-gray-500 font-bold">01 Receiving</span>
+                    <span className="text-cyan-400 font-mono mt-1 block">
+                      {charge.supporting_evidence.find(e => e.source.includes("receiving")) ? "✅ Record" : "➖ None"}
+                    </span>
+                  </div>
+                  <div className="bg-gray-900/80 p-2 rounded-lg border border-gray-800">
+                    <span className="block text-gray-500 font-bold">02 Prep</span>
+                    <span className="text-cyan-400 font-mono mt-1 block">
+                      {charge.supporting_evidence.find(e => e.source.includes("prep")) ? "✅ Record" : "➖ None"}
+                    </span>
+                  </div>
+                  <div className="bg-gray-900/80 p-2 rounded-lg border border-gray-800">
+                    <span className="block text-gray-500 font-bold">03 Pack</span>
+                    <span className="text-cyan-400 font-mono mt-1 block">
+                      {charge.supporting_evidence.find(e => e.source.includes("pack")) ? "✅ Record" : "➖ None"}
+                    </span>
+                  </div>
+                  <div className="bg-gray-900/80 p-2 rounded-lg border border-gray-800">
+                    <span className="block text-gray-500 font-bold">04 Returns</span>
+                    <span className="text-cyan-400 font-mono mt-1 block">
+                      {charge.supporting_evidence.find(e => e.source.includes("returns")) ? "✅ Record" : "➖ None"}
+                    </span>
+                  </div>
+                  <div className="bg-cyan-950/60 p-2 rounded-lg border border-cyan-500/30">
+                    <span className="block text-cyan-400 font-bold">05 Recovery</span>
+                    <span className="text-white font-extrabold mt-1 block uppercase">{charge.assessment}</span>
+                  </div>
+                </div>
+
+                {/* Evidence Records List */}
+                {charge.supporting_evidence.length > 0 ? (
+                  <div className="space-y-2">
+                    {charge.supporting_evidence.map((ev, idx) => (
+                      <div key={idx} className="bg-gray-900 p-2.5 rounded-lg text-xs font-mono border border-gray-800 flex items-start justify-between">
+                        <div>
+                          <span className="text-cyan-400 font-bold">[{ev.source}]</span> Record: <span className="text-white">{ev.record_id}</span>
+                          <p className="text-gray-400 font-sans mt-0.5">{ev.notes}</p>
+                        </div>
+                        <span className="text-[10px] text-gray-500">{ev.timestamp ? ev.timestamp.slice(0, 10) : ''}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-500 italic">No matched evidence logs (Silent outcome enforced).</p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center justify-between pt-4 mt-2 border-t border-gray-800/60">
+            <button 
+              onClick={() => setExpanded(!expanded)} 
+              className="text-xs text-cyan-400 hover:text-cyan-300 font-medium flex items-center space-x-1"
+            >
+              <span>{expanded ? "Hide Reasoning" : "View Upstream Evidence Trace"}</span>
+            </button>
+
+            <div className="flex items-center space-x-2">
+              <button 
+                onClick={() => onOpenOverride(charge)}
+                className="px-2.5 py-1 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-medium border border-gray-700 transition"
+              >
+                Override
+              </button>
+              {charge.assessment === "CONTRADICTED" && (
+                <button 
+                  onClick={() => onGenerateDispute(charge)}
+                  className="px-3 py-1 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 text-xs font-bold transition"
+                >
+                  Legal Dispute Text
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    /* Modal: Formal Legal Dispute */
+    function FormalDisputeModal({ charge, onClose }) {
+      const [copied, setCopied] = useState(false);
+
+      const disputeText = `FORMAL REIMBURSEMENT CLAIM DISPUTE
+--------------------------------------------------
+Charge Reference: ${charge.charge_id}
+Shipment / Order ID: ${charge.shipment_id || "N/A"}
+Channel Billed Reason: ${charge.reason}
+Billed Amount: $${charge.amount.toFixed(2)} USD
+Requested Recovery Claim Amount: $${charge.claim_amount.toFixed(2)} USD
+
+DISPUTE RATIONALE & EVIDENCE SUMMARY:
+The fee assessed under Charge ID ${charge.charge_id} for '${charge.reason}' is factually contradicted by verified operational records captured at inbound receiving and prep compliance stages.
+
+Primary Finding:
+${charge.explanation}
+
+OPERATIONAL EVIDENCE TRAIL:
+${charge.supporting_evidence.map(e => `• [${e.source.toUpperCase()}] Record ${e.record_id} at ${e.timestamp || 'N/A'}: Notes: '${e.notes}'`).join('\n')}
+
+STATEMENT OF COMPLIANCE:
+All physical units in Shipment ${charge.shipment_id} underwent automated and human quality audits in accordance with Amazon FBA prep and packaging guidelines prior to carrier tender. We respectfully request immediate credit/reimbursement of $${charge.claim_amount.toFixed(2)} USD.`;
+
+      const copyToClipboard = () => {
+        navigator.clipboard.writeText(disputeText);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      };
+
+      return (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="glass-panel rounded-2xl max-w-2xl w-full p-6 border border-cyan-500/30">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <span>📜 Channel Dispute Formal Claim Statement</span>
+              </h3>
+              <button onClick={onClose} className="text-gray-400 hover:text-white">✕</button>
+            </div>
+            
+            <textarea 
+              readOnly
+              value={disputeText}
+              rows={14}
+              className="w-full bg-gray-950 text-cyan-300 font-mono text-xs p-4 rounded-xl border border-gray-800 focus:outline-none leading-relaxed"
+            />
+
+            <div className="flex items-center justify-between mt-4">
+              <span className="text-xs text-gray-500">Formulated for Amazon Seller Central / 3PL Claim Appeals</span>
+              <div className="flex items-center space-x-3">
+                <button 
+                  onClick={copyToClipboard}
+                  className="px-4 py-2 rounded-xl bg-cyan-500 text-slate-950 font-bold text-xs hover:bg-cyan-400 transition"
+                >
+                  {copied ? "Copied to Clipboard! ✓" : "Copy Dispute Text"}
+                </button>
+                <button onClick={onClose} className="px-4 py-2 rounded-xl bg-gray-800 text-gray-300 text-xs font-semibold">
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    /* Modal: Operator Override */
+    function OverrideModal({ charge, onClose, onSubmit }) {
+      const [verdict, setVerdict] = useState(charge.assessment);
+      const [operatorId, setOperatorId] = useState("OP-SUPERVISOR-01");
+      const [reason, setReason] = useState("");
+
+      const handleSubmit = (e) => {
+        e.preventDefault();
+        if (!reason.trim()) {
+          alert("Please provide an override reason.");
+          return;
+        }
+        onSubmit(charge.charge_id, verdict, operatorId, reason);
+      };
+
+      return (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="glass-panel rounded-2xl max-w-md w-full p-6 border border-purple-500/30">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-white">Operator Verdict Override</h3>
+              <button onClick={onClose} className="text-gray-400 hover:text-white">✕</button>
+            </div>
+
+            <p className="text-xs text-gray-400 mb-4">
+              Engineering Rule: Overrides are data. Both original verdict ({charge.assessment}) and new verdict will be permanently archived in the audit log.
+            </p>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-300 mb-1">New Verdict</label>
+                <select 
+                  value={verdict} 
+                  onChange={(e) => setVerdict(e.target.value)}
+                  className="w-full bg-gray-900 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white focus:ring-1 focus:ring-purple-500"
+                >
+                  <option value="CONTRADICTED">CONTRADICTED (Generate Claim)</option>
+                  <option value="SUPPORTED">SUPPORTED (Valid Channel Charge)</option>
+                  <option value="SILENT">SILENT (Missing Evidence)</option>
+                  <option value="UNCERTAIN">UNCERTAIN (Pending Review)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-300 mb-1">Operator ID</label>
+                <input 
+                  type="text" 
+                  value={operatorId} 
+                  onChange={(e) => setOperatorId(e.target.value)}
+                  className="w-full bg-gray-900 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white focus:ring-1 focus:ring-purple-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-300 mb-1">Override Rationale</label>
+                <textarea 
+                  rows={3}
+                  value={reason} 
+                  onChange={(e) => setReason(e.target.value)}
+                  placeholder="Explain why operational evidence verdict is being overridden..."
+                  className="w-full bg-gray-900 border border-gray-800 rounded-xl p-3 text-xs text-white focus:ring-1 focus:ring-purple-500"
+                  required
+                />
+              </div>
+
+              <div className="flex items-center justify-end space-x-3 pt-2">
+                <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl bg-gray-800 text-gray-300 text-xs font-semibold">
+                  Cancel
+                </button>
+                <button type="submit" className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-lg shadow-purple-500/20">
+                  Save Override Record
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      );
+    }
+
+    /* Modal: Evaluation Suite */
+    function EvaluationModal({ metrics, onClose }) {
+      return (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="glass-panel rounded-2xl max-w-3xl w-full p-6 border border-purple-500/40 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                  <span>📊 System Evaluation Suite Report</span>
+                </h3>
+                <p className="text-xs text-gray-400">Precision & Recall metrics evaluated against ground truth test fixtures</p>
+              </div>
+              <button onClick={onClose} className="text-gray-400 hover:text-white text-lg">✕</button>
+            </div>
+
+            {/* Score Metric Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <div className="bg-purple-950/40 p-4 rounded-xl border border-purple-500/30">
+                <span className="text-xs text-purple-300 font-semibold block">Claim Precision</span>
+                <span className="text-3xl font-extrabold text-white font-mono">{Math.round(metrics.claim_precision * 100)}%</span>
+              </div>
+              <div className="bg-cyan-950/40 p-4 rounded-xl border border-cyan-500/30">
+                <span className="text-xs text-cyan-300 font-semibold block">Claim Recall</span>
+                <span className="text-3xl font-extrabold text-white font-mono">{Math.round(metrics.claim_recall * 100)}%</span>
+              </div>
+              <div className="bg-gray-900 p-4 rounded-xl border border-gray-800">
+                <span className="text-xs text-gray-400 font-semibold block">Silent Rate</span>
+                <span className="text-3xl font-extrabold text-gray-300 font-mono">{Math.round(metrics.silent_rate * 100)}%</span>
+              </div>
+              <div className="bg-amber-950/40 p-4 rounded-xl border border-amber-500/30">
+                <span className="text-xs text-amber-300 font-semibold block">Uncertain Rate</span>
+                <span className="text-3xl font-extrabold text-white font-mono">{Math.round(metrics.uncertain_rate * 100)}%</span>
+              </div>
+            </div>
+
+            {/* Breakdown Table */}
+            <div className="bg-gray-950 p-4 rounded-xl border border-gray-800 mb-6 font-mono text-xs">
+              <div className="grid grid-cols-2 gap-2 text-gray-300">
+                <div>Total Charges Evaluated: <span className="text-white font-bold">{metrics.total_charges_evaluated}</span></div>
+                <div>Recommended Claims: <span className="text-cyan-400 font-bold">{metrics.claims_recommended}</span></div>
+                <div>True Positives (Correct Claims): <span className="text-emerald-400 font-bold">{metrics.true_positives}</span></div>
+                <div>False Positives (Bad Claims): <span className="text-red-400 font-bold">{metrics.false_positives}</span></div>
+                <div>True Negatives (Valid Fees): <span className="text-emerald-400 font-bold">{metrics.true_negatives}</span></div>
+                <div>False Negatives (Missed Claims): <span className="text-amber-400 font-bold">{metrics.false_negatives}</span></div>
+              </div>
+            </div>
+
+            {/* Failure Modes List */}
+            <div>
+              <h4 className="text-xs font-bold text-gray-300 uppercase tracking-wider mb-2">Traced System Failure Modes</h4>
+              {metrics.failure_modes.length > 0 ? (
+                <div className="space-y-2">
+                  {metrics.failure_modes.map((fm, i) => (
+                    <div key={i} className="bg-gray-900 p-3 rounded-xl border border-red-500/20 text-xs">
+                      <span className="text-red-400 font-bold font-mono">[{fm.type}]</span> <span className="text-white font-bold">{fm.charge_id}</span>
+                      <p className="text-gray-400 mt-1">{fm.reason}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-emerald-400 font-semibold">Zero false positive claims detected! 100% Precision achieved.</p>
+              )}
+            </div>
+
+            <div className="mt-6 text-right">
+              <button onClick={onClose} className="px-5 py-2 rounded-xl bg-purple-600 text-white font-bold text-xs hover:bg-purple-500">
+                Close Report
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    /* Modal: File Upload */
+    function FileUploadModal({ tenantId, onClose, onSuccess }) {
+      const [uploading, setUploading] = useState(false);
+
+      const handleFileChange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        setUploading(true);
+        const formData = new FormData();
+        formData.append("file", file);
+
+        try {
+          const res = await fetch(`${API_BASE}/upload-report?tenant_id_query=${tenantId}`, {
+            method: "POST",
+            headers: { "X-Tenant-ID": tenantId },
+            body: formData
+          });
+          const data = await res.json();
+          if (res.ok) {
+            alert(`File uploaded! ${data.message}`);
+            onSuccess();
+            onClose();
+          } else {
+            alert("Upload failed: " + data.detail);
+          }
+        } catch (err) {
+          alert("Upload error: " + err.message);
+        } finally {
+          setUploading(false);
+        }
+      };
+
+      return (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="glass-panel rounded-2xl max-w-md w-full p-6 border border-cyan-500/40">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-white">Upload Fee Report</h3>
+              <button onClick={onClose} className="text-gray-400 hover:text-white">✕</button>
+            </div>
+
+            <p className="text-xs text-gray-400 mb-4">
+              Upload an Amazon Inbound / Reimbursement fee report in CSV or JSON format. Charges will be parsed and scoped to <span className="text-cyan-400 font-mono">{tenantId}</span>.
+            </p>
+
+            <div className="border-2 border-dashed border-cyan-500/40 hover:border-cyan-400 rounded-2xl p-8 text-center bg-gray-950/40 cursor-pointer relative">
+              <input 
+                type="file" 
+                accept=".csv, .json"
+                onChange={handleFileChange}
+                disabled={uploading}
+                className="absolute inset-0 opacity-0 cursor-pointer"
+              />
+              <span className="text-4xl block mb-2">📁</span>
+              <span className="text-sm font-bold text-cyan-400 block">Click or Drag & Drop CSV / JSON Report</span>
+              <span className="text-[10px] text-gray-500 mt-1 block">Supports Amazon Inbound Defect Reports, FBA Fee Files</span>
+            </div>
+
+            {uploading && <p className="text-xs text-cyan-400 text-center mt-3">Ingesting file...</p>}
+
+            <div className="mt-6 text-right">
+              <button onClick={onClose} className="px-4 py-2 rounded-xl bg-gray-800 text-gray-300 text-xs font-semibold">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
